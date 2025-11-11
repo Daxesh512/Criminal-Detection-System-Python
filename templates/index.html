@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Criminal Face Detection System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Statistics Cards -->
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title text-muted mb-1">Total Criminals</h5>
+                        <h2 class="mb-0">{{ stats.total_criminals }}</h2>
+                    </div>
+                    <div class="stat-icon bg-police-blue">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title text-muted mb-1">Total Detections</h5>
+                        <h2 class="mb-0">{{ stats.total_detections }}</h2>
+                    </div>
+                    <div class="stat-icon bg-info">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title text-muted mb-1">Matches Found</h5>
+                        <h2 class="mb-0">{{ stats.matches_found }}</h2>
+                    </div>
+                    <div class="stat-icon bg-success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title text-muted mb-1">Match Rate</h5>
+                        <h2 class="mb-0">{{ stats.match_rate }}%</h2>
+                    </div>
+                    <div class="stat-icon bg-warning">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Detection Viewport -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header bg-police-blue text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-search me-2"></i>Face Detection System
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="detection-viewport">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">Upload Image for Analysis</h4>
+                            <p class="text-muted mb-3">Drag and drop an image here or click to browse</p>
+                            <form id="uploadForm" method="POST" action="{{ url_for('detect_face') }}" enctype="multipart/form-data">
+                                <input type="file" name="file" id="fileInput" accept="image/*" class="d-none">
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                    <i class="fas fa-folder-open me-2"></i>Choose File
+                                </button>
+                            </form>
+                        </div>
+                        <div class="upload-preview d-none" id="uploadPreview">
+                            <img id="previewImage" src="" alt="Preview" class="img-fluid mb-3">
+                            <div class="d-flex justify-content-center gap-2">
+                                <button type="button" class="btn btn-success" id="analyzeBtn">
+                                    <i class="fas fa-search me-2"></i>Analyze Image
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="cancelBtn">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </button>
+                            </div>
+                        </div>
+                        <div class="loading-state d-none" id="loadingState">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <h5 class="text-primary">Analyzing Image...</h5>
+                            <p class="text-muted">Please wait while we process the image</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Detections -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Detections
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_detections %}
+                    <div class="detection-list">
+                        {% for detection in recent_detections %}
+                            <div class="detection-item mb-3 p-3 border rounded">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            {% if detection.match_found %}
+                                                <span class="badge bg-success me-2">MATCH</span>
+                                                {{ detection.criminal.name }}
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark me-2">NO MATCH</span>
+                                                Unknown Subject
+                                            {% endif %}
+                                        </h6>
+                                        <small class="text-muted">
+                                            {{ detection.detection_date.strftime('%Y-%m-%d %H:%M') }}
+                                        </small>
+                                        {% if detection.match_found %}
+                                            <div class="mt-1">
+                                                <small class="text-success">
+                                                    Confidence: {{ "%.1f"|format(detection.confidence_score) }}%
+                                                </small>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <a href="{{ url_for('results', detection_id=detection.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No detections yet</h6>
+                        <p class="text-muted small">Upload an image to start face detection</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Status -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>System Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="status-indicator bg-success me-2"></div>
+                            <span>Face Detection Engine</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="status-indicator bg-success me-2"></div>
+                            <span>Criminal Database</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="status-indicator bg-success me-2"></div>
+                            <span>Image Processing</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // File upload handling
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadPreview = document.getElementById('uploadPreview');
+    const previewImage = document.getElementById('previewImage');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const loadingState = document.getElementById('loadingState');
+    const uploadContent = uploadArea.querySelector('.upload-content');
+
+    // Handle file selection
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+                uploadContent.classList.add('d-none');
+                uploadPreview.classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Handle analyze button
+    analyzeBtn.addEventListener('click', function() {
+        uploadPreview.classList.add('d-none');
+        loadingState.classList.remove('d-none');
+        uploadForm.submit();
+    });
+
+    // Handle cancel button
+    cancelBtn.addEventListener('click', function() {
+        fileInput.value = '';
+        uploadPreview.classList.add('d-none');
+        uploadContent.classList.remove('d-none');
+    });
+
+    // Handle drag and drop
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+{% endblock %}

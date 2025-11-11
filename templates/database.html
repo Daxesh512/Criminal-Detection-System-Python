@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Database - Criminal Face Detection System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Criminal Records List -->
+        <div class="card">
+            <div class="card-header bg-police-blue text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-database me-2"></i>Criminal Records Database
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if criminals %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Photo</th>
+                                    <th>Name</th>
+                                    <th>Alias</th>
+                                    <th>Crime Type</th>
+                                    <th>Date Added</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for criminal in criminals %}
+                                    <tr>
+                                        <td>
+                                            {% if criminal.image_filename %}
+                                                <img src="{{ url_for('uploaded_file', filename=criminal.image_filename) }}" 
+                                                     alt="{{ criminal.name }}" 
+                                                     class="criminal-photo">
+                                            {% else %}
+                                                <div class="criminal-photo-placeholder">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ criminal.name }}</strong>
+                                            {% if criminal.description %}
+                                                <br><small class="text-muted">{{ criminal.description[:50] }}{% if criminal.description|length > 50 %}...{% endif %}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if criminal.alias %}
+                                                <span class="badge bg-secondary">{{ criminal.alias }}</span>
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-danger">{{ criminal.crime_type }}</span>
+                                        </td>
+                                        <td>
+                                            <small>{{ criminal.date_added.strftime('%Y-%m-%d') }}</small>
+                                        </td>
+                                        <td>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    onclick="confirmDelete('{{ criminal.id }}', '{{ criminal.name }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No criminal records in database</h5>
+                        <p class="text-muted">Add your first criminal record using the form on the right.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Add Criminal Form -->
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>Add Criminal Record
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_criminal') }}" enctype="multipart/form-data" id="addCriminalForm">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="alias" class="form-label">Alias/Nickname</label>
+                        <input type="text" class="form-control" id="alias" name="alias">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="crime_type" class="form-label">Crime Type *</label>
+                        <select class="form-select" id="crime_type" name="crime_type" required>
+                            <option value="">Select crime type...</option>
+                            <option value="Theft">Theft</option>
+                            <option value="Burglary">Burglary</option>
+                            <option value="Robbery">Robbery</option>
+                            <option value="Assault">Assault</option>
+                            <option value="Fraud">Fraud</option>
+                            <option value="Drug Offense">Drug Offense</option>
+                            <option value="Vandalism">Vandalism</option>
+                            <option value="Traffic Violation">Traffic Violation</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" 
+                                  placeholder="Additional details about the criminal or case..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="photo" class="form-label">Photo *</label>
+                        <input type="file" class="form-control" id="photo" name="file" accept="image/*" required>
+                        <div class="form-text">Upload a clear photo showing the person's face. Supported formats: JPG, PNG, GIF</div>
+                    </div>
+                    
+                    <div class="photo-preview d-none mb-3" id="photoPreview">
+                        <img id="previewImg" src="" alt="Preview" class="img-fluid rounded">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-save me-2"></i>Add to Database
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Database Statistics -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Database Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h3 class="text-primary mb-0">{{ criminals|length }}</h3>
+                        <small class="text-muted">Active Records</small>
+                    </div>
+                    <div class="col-6">
+                        <h3 class="text-success mb-0">
+                            {{ criminals|selectattr('detections')|list|length }}
+                        </h3>
+                        <small class="text-muted">With Matches</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the criminal record for <strong id="criminalName"></strong>?</p>
+                <p class="text-danger">
+                    <i class="fas fa-warning me-2"></i>
+                    This action cannot be undone. The record will be permanently removed from the database.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" id="deleteForm" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Delete Record
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Photo preview functionality
+    const photoInput = document.getElementById('photo');
+    const photoPreview = document.getElementById('photoPreview');
+    const previewImg = document.getElementById('previewImg');
+
+    photoInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                photoPreview.classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            photoPreview.classList.add('d-none');
+        }
+    });
+
+    // Delete confirmation
+    function confirmDelete(criminalId, criminalName) {
+        document.getElementById('criminalName').textContent = criminalName;
+        document.getElementById('deleteForm').action = `/delete_criminal/${criminalId}`;
+        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+
+    // Form validation
+    document.getElementById('addCriminalForm').addEventListener('submit', function(e) {
+        const name = document.getElementById('name').value.trim();
+        const crimeType = document.getElementById('crime_type').value;
+        const photo = document.getElementById('photo').files[0];
+
+        if (!name || !crimeType || !photo) {
+            e.preventDefault();
+            alert('Please fill in all required fields and upload a photo.');
+            return false;
+        }
+
+        // Check file size (max 16MB)
+        if (photo.size > 16 * 1024 * 1024) {
+            e.preventDefault();
+            alert('Photo file size must be less than 16MB.');
+            return false;
+        }
+
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        submitBtn.disabled = true;
+    });
+</script>
+{% endblock %}
